@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, List
 
 import requests
-import google.generativeai as genai
+from google import genai
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -202,7 +202,13 @@ def load_runtime_config() -> RuntimeConfig:
 
 
 def build_query(cfg: RuntimeConfig) -> str:
-    keyword_query = " OR ".join(f'"{kw}"' for kw in cfg.keywords)
+    # Filter out non-ASCII keywords and very short keywords (GDELT API rejects them)
+    english_keywords = [kw for kw in cfg.keywords if kw.isascii() and len(kw) >= 3]
+    if not english_keywords:
+        logging.warning("No valid ASCII keywords found, using fallback")
+        english_keywords = ["inflation", "economy", "market"]
+
+    keyword_query = " OR ".join(f'"{kw}"' for kw in english_keywords)
     return f"({keyword_query}) AND {cfg.theme_query}"
 
 
@@ -210,8 +216,9 @@ def fetch_recent_news(cfg: RuntimeConfig) -> List[NewsItem]:
     end_dt = iso_utc_now()
     start_dt = end_dt - timedelta(hours=cfg.time_window_hours)
 
+    query = build_query(cfg)
     params = {
-        "query": build_query(cfg),
+        "query": query,
         "mode": "artlist",
         "format": "json",
         "sort": "datedesc",
@@ -221,10 +228,21 @@ def fetch_recent_news(cfg: RuntimeConfig) -> List[NewsItem]:
     }
 
     logging.info("Fetching GDELT articles between %s and %s UTC", start_dt.isoformat(), end_dt.isoformat())
+    logging.info("GDELT query: %s", query)
     resp = requests.get(GDELT_ENDPOINT, params=params, timeout=30)
     resp.raise_for_status()
 
-    payload = resp.json()
+    if not resp.text.strip():
+        logging.warning("GDELT returned empty response")
+        return []
+
+    try:
+        payload = resp.json()
+    except ValueError as exc:
+        logging.error("Failed to parse GDELT JSON response: %s", exc)
+        logging.error("Response text: %s", resp.text[:500])
+        return []
+
     articles = payload.get("articles", [])
     news_items: List[NewsItem] = []
 
@@ -265,8 +283,7 @@ def generate_digest(news_items: List[NewsItem], prompt_rice: str) -> str:
     if not os.getenv("GOOGLE_API_KEY"):
         raise RuntimeError("GOOGLE_API_KEY is required")
 
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel(DEFAULT_MODEL)
+    client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
     context = build_news_context(news_items)
 
     system_instruction = "당신은 신중한 금융 리서치 보조자입니다. 주어진 뉴스 근거를 벗어나 추측하지 말고, 불확실한 값은 명확히 표시하세요."
@@ -282,7 +299,7 @@ def generate_digest(news_items: List[NewsItem], prompt_rice: str) -> str:
     full_prompt = f"{system_instruction}\\n\\n{user_input}"
 
     logging.info("Generating digest with model=%s", DEFAULT_MODEL)
-    response = model.generate_content(full_prompt)
+    response = client.models.generate_content(model=DEFAULT_MODEL, contents=full_prompt)
     output = response.text.strip()
     if not output:
         raise RuntimeError("Gemini returned empty output")

@@ -3,5 +3,5 @@
   "max_gdelt_records": 120,
   "max_news_in_context": 70,
   "slack_chunk_size": 3500,
-  "theme_query": "(politics OR geopolitical OR economy OR market OR earnings OR m&a OR guidance OR disclosure OR policy)"
+  "theme_query": "(economy OR market OR policy)"
 }
