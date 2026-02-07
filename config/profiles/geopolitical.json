@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "time_window_hours": 36,
+    "max_gdelt_records": 200,
+    "max_news_in_context": 100,
+    "theme_query": "(geopolitical OR conflict OR sanctions OR war OR shipping route OR oil supply OR opec OR nato OR cyberattack OR defense policy)"
+  },
+  "keywords": [
+    "geopolitical risk",
+    "conflict",
+    "sanctions",
+    "oil supply",
+    "opec",
+    "shipping route",
+    "defense policy",
+    "cyberattack",
+    "war",
+    "nato",
+    "지정학 리스크",
+    "제재",
+    "원유",
+    "방산",
+    "해상운임"
+  ],
+  "prompt_file": "prompts/digest_rice.md"
+}

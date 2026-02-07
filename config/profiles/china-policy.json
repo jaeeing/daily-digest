@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "time_window_hours": 30,
+    "max_gdelt_records": 180,
+    "max_news_in_context": 90,
+    "theme_query": "(china policy OR beijing OR pboc OR stimulus OR regulation OR tariff OR semiconductor OR export control OR yuan OR property market)"
+  },
+  "keywords": [
+    "china policy",
+    "beijing",
+    "pboc",
+    "stimulus",
+    "regulation",
+    "tariff",
+    "export control",
+    "yuan",
+    "property market",
+    "semiconductor",
+    "중국 정책",
+    "부양책",
+    "위안화",
+    "관세",
+    "수출규제"
+  ],
+  "prompt_file": "prompts/digest_rice.md"
+}

@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "time_window_hours": 30,
+    "max_gdelt_records": 180,
+    "max_news_in_context": 90,
+    "theme_query": "(earnings OR guidance OR forecast OR revenue OR margin OR beat OR miss OR surprise OR outlook OR disclosure)"
+  },
+  "keywords": [
+    "earnings",
+    "guidance",
+    "forecast",
+    "outlook",
+    "revenue",
+    "operating margin",
+    "beat",
+    "miss",
+    "surprise",
+    "disclosure",
+    "실적",
+    "가이던스",
+    "영업이익",
+    "매출",
+    "컨센서스"
+  ],
+  "prompt_file": "prompts/digest_rice.md"
+}

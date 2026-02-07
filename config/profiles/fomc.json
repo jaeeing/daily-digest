@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "time_window_hours": 36,
+    "max_gdelt_records": 180,
+    "max_news_in_context": 90,
+    "theme_query": "(federal reserve OR fomc OR interest rate OR inflation OR treasury OR dollar OR bond yield OR cpi OR pce OR policy)"
+  },
+  "keywords": [
+    "fomc",
+    "federal reserve",
+    "powell",
+    "interest rate",
+    "dot plot",
+    "cpi",
+    "pce",
+    "inflation",
+    "treasury yield",
+    "dollar index",
+    "금리",
+    "연준",
+    "물가",
+    "환율",
+    "채권"
+  ],
+  "prompt_file": "prompts/digest_rice.md"
+}

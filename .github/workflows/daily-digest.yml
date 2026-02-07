@@ -1,0 +1,86 @@
+name: Daily Trading Digest
+
+on:
+  schedule:
+    - cron: '30 22 * * *' # 07:30 KST
+  workflow_dispatch:
+
+jobs:
+  run-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          DIGEST_PROFILE: ${{ vars.DIGEST_PROFILE }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: python digest.py
+
+      - name: Append report to job summary
+        if: always()
+        run: |
+          LATEST_MD=$(ls -t artifacts/delivery-report-*.md 2>/dev/null | head -n 1 || true)
+          if [ -n "$LATEST_MD" ]; then
+            cat "$LATEST_MD" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No delivery report markdown found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Append monitoring snapshot
+        if: always()
+        run: |
+          LATEST_JSON=$(ls -t artifacts/delivery-report-*.json 2>/dev/null | head -n 1 || true)
+          if [ -z "$LATEST_JSON" ]; then
+            echo "## Monitoring Snapshot" >> "$GITHUB_STEP_SUMMARY"
+            echo "- report_json: not found" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          python - "$LATEST_JSON" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+
+          path = sys.argv[1]
+          with open(path, "r", encoding="utf-8") as f:
+              report = json.load(f)
+
+          slack = report.get("delivery", {}).get("slack", {})
+          email = report.get("delivery", {}).get("email", {})
+          cfg = report.get("config", {})
+
+          print("## Monitoring Snapshot")
+          print(f"- status: `{report.get('status', 'unknown')}`")
+          print(f"- profile: `{cfg.get('profile', 'default')}`")
+          print(f"- news_count: `{report.get('news_count', 0)}`")
+          print(f"- slack_success: `{slack.get('success', False)}` ({slack.get('detail', 'n/a')})")
+          print(f"- email_success: `{email.get('success', False)}` ({email.get('detail', 'n/a')})")
+          print(f"- keyword_count: `{cfg.get('keyword_count', 'n/a')}`")
+          PY
+
+      - name: Upload delivery reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: delivery-reports-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
