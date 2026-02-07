@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, List
 
 import requests
-from openai import OpenAI
+import google.generativeai as genai
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 GDELT_ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc"
 CONFIG_DIR = Path(os.getenv("CONFIG_DIR", "config"))
 REPORT_DIR = Path(os.getenv("REPORT_DIR", "artifacts"))
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 DEFAULT_KEYWORDS = [
     "금리",
@@ -44,7 +44,7 @@ DEFAULT_KEYWORDS = [
 
 DEFAULT_PROMPT_RICE = """### R (Role) - 역할
 
-당신은 10년 경력의 단기 트레이딩 전문가입니다.
+당신은 10년 경력의 트레이딩 전문가입니다.
 
 * 매일 새벽 글로벌 뉴스와 공시를 분석
 * 테마주/이슈 선점 투자 전문
@@ -52,7 +52,7 @@ DEFAULT_PROMPT_RICE = """### R (Role) - 역할
 
 ### I (Instruction) - 지시사항
 
-오늘 주식장 시작 전, 단타 매매에 활용할 수 있는 핵심 정보를 분석해주세요.
+오늘 주식장 시작 전, 매매에 활용할 수 있는 핵심 정보를 분석해주세요.
 
 중요: 최근 24시간 이내의 최신 뉴스를 실시간 검색하여 분석해주세요.
 
@@ -262,11 +262,14 @@ def build_news_context(news_items: List[NewsItem]) -> str:
 
 
 def generate_digest(news_items: List[NewsItem], prompt_rice: str) -> str:
-    if not os.getenv("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY is required")
+    if not os.getenv("GOOGLE_API_KEY"):
+        raise RuntimeError("GOOGLE_API_KEY is required")
 
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+    model = genai.GenerativeModel(DEFAULT_MODEL)
     context = build_news_context(news_items)
+
+    system_instruction = "당신은 신중한 금융 리서치 보조자입니다. 주어진 뉴스 근거를 벗어나 추측하지 말고, 불확실한 값은 명확히 표시하세요."
 
     user_input = (
         f"{prompt_rice}\\n\\n"
@@ -276,23 +279,13 @@ def generate_digest(news_items: List[NewsItem], prompt_rice: str) -> str:
         f"[최근 24시간 뉴스 목록]\\n{context}"
     )
 
+    full_prompt = f"{system_instruction}\\n\\n{user_input}"
+
     logging.info("Generating digest with model=%s", DEFAULT_MODEL)
-    response = client.responses.create(
-        model=DEFAULT_MODEL,
-        input=[
-            {
-                "role": "system",
-                "content": "당신은 신중한 금융 리서치 보조자입니다. 주어진 뉴스 근거를 벗어나 추측하지 말고, 불확실한 값은 명확히 표시하세요.",
-            },
-            {
-                "role": "user",
-                "content": user_input,
-            },
-        ],
-    )
-    output = response.output_text.strip()
+    response = model.generate_content(full_prompt)
+    output = response.text.strip()
     if not output:
-        raise RuntimeError("OpenAI returned empty output")
+        raise RuntimeError("Gemini returned empty output")
     return output
 
 
