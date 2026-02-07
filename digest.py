@@ -376,19 +376,112 @@ def send_email(text: str) -> DeliveryStatus:
     <html>
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
-            th, td {{ border: 1px solid #ddd; padding: 12px 8px; text-align: left; }}
-            th {{ background-color: #f2f2f2; font-weight: bold; }}
-            tr:nth-child(even) {{ background-color: #f9f9f9; }}
-            h1, h2, h3 {{ color: #2c3e50; }}
-            hr {{ border: 0; height: 1px; background: #ddd; margin: 20px 0; }}
-            code {{ background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Arial, sans-serif;
+                font-size: 15px;
+                line-height: 1.7;
+                color: #2c3e50;
+                background-color: #f8f9fa;
+                padding: 20px;
+            }}
+            .container {{
+                max-width: 800px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }}
+            h1 {{
+                font-size: 24px;
+                color: #1a1a1a;
+                margin-bottom: 10px;
+                padding-bottom: 15px;
+                border-bottom: 3px solid #3498db;
+            }}
+            h2 {{
+                font-size: 20px;
+                color: #2c3e50;
+                margin-top: 30px;
+                margin-bottom: 15px;
+                padding-left: 10px;
+                border-left: 4px solid #3498db;
+            }}
+            h3 {{
+                font-size: 18px;
+                color: #34495e;
+                margin-top: 25px;
+                margin-bottom: 12px;
+            }}
+            p {{
+                font-size: 15px;
+                line-height: 1.7;
+                margin-bottom: 12px;
+            }}
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin: 20px 0;
+                font-size: 14px;
+                background-color: #ffffff;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 14px 12px;
+                text-align: left;
+                vertical-align: top;
+            }}
+            th {{
+                background-color: #3498db;
+                color: #ffffff;
+                font-weight: 600;
+                font-size: 14px;
+            }}
+            tr:nth-child(even) {{
+                background-color: #f8f9fa;
+            }}
+            tr:hover {{
+                background-color: #e8f4f8;
+            }}
+            hr {{
+                border: 0;
+                height: 2px;
+                background: linear-gradient(to right, #3498db, transparent);
+                margin: 25px 0;
+            }}
+            code {{
+                background-color: #f4f4f4;
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+            }}
+            strong {{
+                color: #e74c3c;
+                font-weight: 600;
+            }}
+            .news-meta {{
+                font-size: 13px;
+                color: #7f8c8d;
+                margin: 5px 0;
+            }}
+            @media only screen and (max-width: 600px) {{
+                body {{ padding: 10px; }}
+                .container {{ padding: 20px; }}
+                h1 {{ font-size: 20px; }}
+                h2 {{ font-size: 18px; }}
+                table {{ font-size: 13px; }}
+                th, td {{ padding: 10px 8px; }}
+            }}
         </style>
     </head>
     <body>
-        {html_content}
+        <div class="container">
+            {html_content}
+        </div>
     </body>
     </html>
     """
