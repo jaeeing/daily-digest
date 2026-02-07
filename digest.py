@@ -12,6 +12,7 @@ from typing import Any, List
 import requests
 from google import genai
 import markdown
+from premailer import transform
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -547,7 +548,10 @@ def send_email(text: str) -> DeliveryStatus:
     </html>
     """
 
-    msg = MIMEText(html_body, _subtype="html", _charset="utf-8")
+    # CSS를 인라인 스타일로 변환 (이메일 클라이언트 호환성)
+    html_body_inlined = transform(html_body)
+
+    msg = MIMEText(html_body_inlined, _subtype="html", _charset="utf-8")
     msg["Subject"] = subject
     msg["From"] = mail_from
     msg["To"] = ", ".join(recipients)
