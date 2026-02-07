@@ -530,6 +530,25 @@ def send_email(text: str) -> DeliveryStatus:
             li {{
                 margin-bottom: 8px;
             }}
+            a {{
+                color: #3498db;
+                text-decoration: none;
+                font-weight: 600;
+                border-bottom: 1px solid transparent;
+                transition: all 0.2s;
+            }}
+            a:hover {{
+                color: #2980b9;
+                border-bottom-color: #2980b9;
+            }}
+            .news-meta a {{
+                color: #2c3e50;
+                font-weight: 700;
+                text-decoration: underline;
+            }}
+            .news-meta a:hover {{
+                color: #3498db;
+            }}
             @media only screen and (max-width: 600px) {{
                 body {{ padding: 10px; }}
                 .container {{ padding: 20px; }}

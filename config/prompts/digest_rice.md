@@ -14,11 +14,23 @@
 
 **필수 규칙:**
 1. 모든 뉴스 제목과 헤드라인은 반드시 한국어로 번역하세요. 영어 제목을 그대로 사용하지 마세요.
+
 2. 각 뉴스마다 반드시 다음 정보를 명시하세요:
-   - 📰 출처: 뉴스 출처 (예: Reuters, Bloomberg, CNBC 등)
+   - 📰 출처: 뉴스 출처를 링크로 표시 (예: `<a href="URL">Reuters</a>`)
    - 📅 게시일: 뉴스 발행 날짜 및 시간 (YYYY-MM-DD HH:MM 형식)
-   - 🔗 원문: 뉴스 링크 URL
-3. 과거 뉴스(24시간 이상 경과)는 제외하고, 최신 뉴스만 우선순위로 선정하세요.
+
+3. **종목 코드 링크 규칙 (매우 중요!)**:
+   - **한국 종목**: 반드시 네이버 금융 링크를 추가하세요
+     형식: `<a href="https://finance.naver.com/item/main.naver?code=종목코드">종목명 (종목코드)</a>`
+     예시: `<a href="https://finance.naver.com/item/main.naver?code=005930">삼성전자 (005930)</a>`
+
+   - **미국 종목**: 반드시 Yahoo Finance 링크를 추가하세요
+     형식: `<a href="https://finance.yahoo.com/quote/티커/">종목명 (티커)</a>`
+     예시: `<a href="https://finance.yahoo.com/quote/NVDA/">엔비디아 (NVDA)</a>`
+
+   - 모든 종목명은 반드시 링크와 함께 표시되어야 합니다.
+
+4. 과거 뉴스(24시간 이상 경과)는 제외하고, 최신 뉴스만 우선순위로 선정하세요.
 
 분석 조건:
 
@@ -50,13 +62,13 @@
 1순위: [뉴스 헤드라인 - 한국어로 번역]
 
 <div class="news-meta">
-<strong>📰 출처</strong>: [뉴스 출처] | <strong>📅 게시일</strong>: [YYYY-MM-DD HH:MM] | <strong>🔗 원문</strong>: [URL]
+<strong>📰 출처</strong>: <a href="[원문 URL]">[뉴스 출처]</a> | <strong>📅 게시일</strong>: [YYYY-MM-DD HH:MM]
 </div>
 
 | 항목     | 내용                   |
 | ------ | -------------------- |
 | 뉴스 요약  | [1-2줄 요약]            |
-| 수혜 종목  | [종목명] (종목코드)         |
+| 수혜 종목  | `<a href="https://finance.naver.com/item/main.naver?code=005930">삼성전자 (005930)</a>`, `<a href="https://finance.yahoo.com/quote/NVDA/">엔비디아 (NVDA)</a>` |
 | 연결 고리  | [왜 이 뉴스가 이 종목에 영향?]  |
 | 현재가/등락 | [가격] ([전일대비])        |
 | 예상 영향  | 상승/하락, 강도(상/중/하)     |
