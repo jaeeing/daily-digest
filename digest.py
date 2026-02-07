@@ -11,6 +11,7 @@ from typing import Any, List
 
 import requests
 from google import genai
+import markdown
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -363,7 +364,36 @@ def send_email(text: str) -> DeliveryStatus:
     now_kst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M KST")
     subject = f"[Daily Trading Digest] {now_kst}"
 
-    msg = MIMEText(text, _subtype="plain", _charset="utf-8")
+    # Markdown을 HTML로 변환
+    html_content = markdown.markdown(
+        text,
+        extensions=['tables', 'nl2br', 'fenced_code']
+    )
+
+    # 기본 HTML 템플릿 적용
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
+            table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 12px 8px; text-align: left; }}
+            th {{ background-color: #f2f2f2; font-weight: bold; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            h1, h2, h3 {{ color: #2c3e50; }}
+            hr {{ border: 0; height: 1px; background: #ddd; margin: 20px 0; }}
+            code {{ background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; }}
+        </style>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
+    """
+
+    msg = MIMEText(html_body, _subtype="html", _charset="utf-8")
     msg["Subject"] = subject
     msg["From"] = mail_from
     msg["To"] = ", ".join(recipients)
