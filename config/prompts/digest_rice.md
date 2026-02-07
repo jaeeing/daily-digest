@@ -68,7 +68,7 @@
 | 항목     | 내용                   |
 | ------ | -------------------- |
 | 뉴스 요약  | [1-2줄 요약]            |
-| 수혜 종목  | `<a href="https://finance.naver.com/item/main.naver?code=005930">삼성전자 (005930)</a>`, `<a href="https://finance.yahoo.com/quote/NVDA/">엔비디아 (NVDA)</a>` |
+| 수혜 종목  | <a href="https://finance.naver.com/item/main.naver?code=005930">삼성전자 (005930)</a>, <a href="https://finance.yahoo.com/quote/NVDA/">엔비디아 (NVDA)</a> |
 | 연결 고리  | [왜 이 뉴스가 이 종목에 영향?]  |
 | 현재가/등락 | [가격] ([전일대비])        |
 | 예상 영향  | 상승/하락, 강도(상/중/하)     |
