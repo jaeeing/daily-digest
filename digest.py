@@ -396,25 +396,34 @@ def send_email(text: str) -> DeliveryStatus:
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             }}
             h1 {{
-                font-size: 24px;
-                color: #1a1a1a;
-                margin-bottom: 10px;
-                padding-bottom: 15px;
-                border-bottom: 3px solid #3498db;
+                font-size: 28px;
+                color: #ffffff;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                margin: -30px -30px 25px -30px;
+                padding: 25px 30px;
+                border-radius: 8px 8px 0 0;
+                text-align: center;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }}
             h2 {{
-                font-size: 20px;
+                font-size: 22px;
+                color: #ffffff;
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                margin: 35px -30px 20px -30px;
+                padding: 15px 30px;
+                border-left: 5px solid #e74c3c;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            h3 {{
+                font-size: 19px;
                 color: #2c3e50;
                 margin-top: 30px;
                 margin-bottom: 15px;
-                padding-left: 10px;
-                border-left: 4px solid #3498db;
-            }}
-            h3 {{
-                font-size: 18px;
-                color: #34495e;
-                margin-top: 25px;
-                margin-bottom: 12px;
+                padding: 12px 15px;
+                background-color: #ecf0f1;
+                border-left: 5px solid #3498db;
+                border-radius: 4px;
             }}
             p {{
                 font-size: 15px;
@@ -422,51 +431,103 @@ def send_email(text: str) -> DeliveryStatus:
                 margin-bottom: 12px;
             }}
             table {{
-                border-collapse: collapse;
+                border-collapse: separate;
+                border-spacing: 0;
                 width: 100%;
                 margin: 20px 0;
                 font-size: 14px;
                 background-color: #ffffff;
+                border: 2px solid #2c3e50;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }}
             th, td {{
-                border: 1px solid #ddd;
-                padding: 14px 12px;
+                border: 1px solid #bdc3c7;
+                padding: 16px 14px;
                 text-align: left;
                 vertical-align: top;
             }}
             th {{
-                background-color: #3498db;
+                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
                 color: #ffffff;
-                font-weight: 600;
-                font-size: 14px;
+                font-weight: 700;
+                font-size: 15px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                border: none;
+                border-bottom: 3px solid #e74c3c;
             }}
-            tr:nth-child(even) {{
+            td:first-child {{
+                background-color: #ecf0f1;
+                font-weight: 600;
+                color: #2c3e50;
+                width: 20%;
+                border-right: 2px solid #bdc3c7;
+            }}
+            tr:nth-child(even) td:not(:first-child) {{
                 background-color: #f8f9fa;
             }}
-            tr:hover {{
-                background-color: #e8f4f8;
+            tr:nth-child(odd) td:not(:first-child) {{
+                background-color: #ffffff;
+            }}
+            tr:hover td {{
+                background-color: #fff3cd !important;
+                transition: background-color 0.2s;
+            }}
+            tr:hover td:first-child {{
+                background-color: #ffeaa7 !important;
             }}
             hr {{
                 border: 0;
-                height: 2px;
-                background: linear-gradient(to right, #3498db, transparent);
-                margin: 25px 0;
+                height: 3px;
+                background: linear-gradient(to right, #667eea, #764ba2, transparent);
+                margin: 30px 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }}
             code {{
                 background-color: #f4f4f4;
-                padding: 3px 8px;
+                padding: 4px 10px;
                 border-radius: 4px;
                 font-family: 'Courier New', monospace;
                 font-size: 13px;
+                border: 1px solid #ddd;
             }}
             strong {{
                 color: #e74c3c;
-                font-weight: 600;
+                font-weight: 700;
+                background-color: #ffe5e5;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }}
+            p strong {{
+                background: none;
+                padding: 0;
             }}
             .news-meta {{
-                font-size: 13px;
-                color: #7f8c8d;
-                margin: 5px 0;
+                font-size: 14px;
+                color: #34495e;
+                background-color: #e8f4f8;
+                padding: 12px 15px;
+                margin: 10px 0 15px 0;
+                border-radius: 6px;
+                border-left: 4px solid #3498db;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }}
+            blockquote {{
+                border-left: 4px solid #f39c12;
+                padding: 15px 20px;
+                margin: 15px 0;
+                background-color: #fef5e7;
+                border-radius: 4px;
+            }}
+            ul, ol {{
+                margin: 15px 0;
+                padding-left: 30px;
+                line-height: 1.8;
+            }}
+            li {{
+                margin-bottom: 8px;
             }}
             @media only screen and (max-width: 600px) {{
                 body {{ padding: 10px; }}
