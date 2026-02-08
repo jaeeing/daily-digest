@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 GDELT_ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc"
 CONFIG_DIR = Path(os.getenv("CONFIG_DIR", "config"))
 REPORT_DIR = Path(os.getenv("REPORT_DIR", "artifacts"))
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "").strip() or "gemini-2.5-flash"
 
 DEFAULT_KEYWORDS = [
     "금리",
