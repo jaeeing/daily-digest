@@ -11,8 +11,9 @@ Daily Trading Digest는 **Google Gemini AI**를 활용하여 글로벌 뉴스를
 - 🌍 **실시간 글로벌 뉴스 수집**: GDELT API를 통한 최근 24시간 내 주요 뉴스 수집
 - 🤖 **AI 기반 분석**: Google Gemini 2.5 Flash로 뉴스 → 투자 인사이트 자동 변환
 - 📊 **프로필 기반 맞춤 분석**: 시나리오별 최적화된 키워드와 프롬프트 (default, fomc, earnings, china-policy, geopolitical)
-- 📨 **자동 전송**: Slack/Email로 매일 아침 자동 리포트 전송
+- 📨 **다중 전송 채널**: Slack/Email/Notion으로 매일 아침 자동 리포트 전송
 - 🎨 **HTML 이메일**: 표 스타일링, 클릭 가능한 링크, 모바일 반응형 디자인
+- 📝 **Notion 자동 아카이빙**: 데이터베이스에 구조화된 속성과 함께 자동 저장
 - 🔗 **종목 링크 자동 생성**: 한국 종목(네이버 금융), 미국 종목(야후 파이낸스) 링크 자동 삽입
 - ⚙️ **GitHub Actions 자동화**: 매일 07:30 KST 자동 실행
 
@@ -184,14 +185,16 @@ DIGEST_PROFILE=geopolitical python digest.py
    - CSS → 인라인 스타일 변환 (premailer) - 이메일 클라이언트 호환성
    - 모바일 반응형 디자인 적용
 
-5. **리포트 전송** (send_to_slack / send_email)
+5. **리포트 전송** (send_to_slack / send_email / send_to_notion)
    - Slack: 3500자 단위 청크 분할 전송
-   - Email: HTML 이메일 전송 (SMTP)
+   - Email: HTML 이메일 전송 (SMTP), 다중 수신자 지원
+   - Notion: 데이터베이스에 구조화된 페이지 생성
    - 종목 링크 클릭 시 해당 금융 사이트로 이동
 
 6. **모니터링** (write_run_report)
    - JSON/Markdown 리포트 생성 (artifacts/)
-   - GitHub Actions 요약에 자동 추가
+   - GitHub Actions 요약에 전송 결과 자동 추가
+   - 각 전송 채널별 성공/실패 상태 추적
 
 ---
 
@@ -214,6 +217,7 @@ pip install -r requirements.txt
 - `python-dateutil>=2.9.0` - 날짜 처리
 - `markdown>=3.5.0` - 마크다운 → HTML 변환
 - `premailer>=3.10.0` - CSS → 인라인 스타일 변환 (이메일 호환성)
+- `notion-client>=2.2.0` - Notion API 연동 (선택)
 
 ### 2. API 키 발급
 
@@ -263,6 +267,85 @@ export MAIL_TO="recipient@gmail.com"
 1. Google 계정 → 보안 → 2단계 인증 활성화
 2. 앱 비밀번호 생성 → "메일" 선택
 3. 생성된 16자리 비밀번호 사용
+
+#### Notion 데이터베이스 연동 (선택)
+
+Notion에 일일 다이제스트를 자동으로 아카이빙하여 구조화된 데이터베이스로 관리할 수 있습니다.
+
+**1. Notion Integration 생성**
+
+1. [Notion Integrations](https://www.notion.so/my-integrations) 페이지 접속
+2. **"New integration"** 클릭
+3. Integration 이름 설정 (예: "Daily Digest Bot")
+4. **Capabilities** 설정:
+   - ✅ Read content
+   - ✅ Update content
+   - ✅ Insert content
+5. **Save** 후 Integration Token 복사 (`ntn_...`로 시작)
+
+**2. Notion 데이터베이스 생성**
+
+데이터베이스에 다음 속성(Properties)을 생성하세요:
+
+| 속성 이름 | 타입 | 설명 |
+|----------|------|------|
+| 제목 | Title | 다이제스트 제목 |
+| 날짜 | Date | 생성 날짜 |
+| 시장 모드 | Select | 상승/하락/혼조/횡보 등 |
+| 글로벌 심리 | Select | 탐욕/공포/중립 등 |
+| VIX | Number | 변동성 지수 |
+| S&P500 | Number | S&P500 지수 |
+| KOSPI | Number | KOSPI 지수 |
+| USD/KRW | Number | 원달러 환율 |
+| 10Y 금리 | Number | 10년물 국채 금리 |
+| 확신도 | Select | ★★★★★ 형식 |
+| 시장 분위기 | Select | 강세/약세/혼조 등 |
+| 핵심 키워드 | Multi-select | AI, 반도체, 금리 등 |
+| 최우선 관심 종목 | Text | 추천 종목 |
+| 한줄 요약 | Text | 시장 요약 |
+
+**3. Integration 연결**
+
+1. 생성한 데이터베이스 페이지에서 오른쪽 상단 `⋯` 메뉴 클릭
+2. **"Connections"** 또는 **"연결"** 선택
+3. 앞서 생성한 Integration 추가
+
+**4. 데이터베이스 ID 확인**
+
+데이터베이스 페이지 URL에서 ID 추출:
+```
+https://www.notion.so/{workspace}/{database_id}?v=...
+                                   ↑ 이 부분 (32자리 hex)
+```
+
+예시:
+```
+https://www.notion.so/myworkspace/b0d7a6a68a424ec38b610be807121317?v=...
+                                  └─────── database_id ──────┘
+```
+
+하이픈을 추가한 형식으로 변환:
+```
+b0d7a6a6-8a42-4ec3-8b61-0be807121317
+```
+
+**5. 환경변수 설정**
+
+```bash
+export NOTION_TOKEN="ntn_xxxxxxxxxxxxxxxx"
+export NOTION_DATA_SOURCE_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+**6. 실행**
+
+```bash
+GOOGLE_API_KEY="your-key" \
+NOTION_TOKEN="ntn_..." \
+NOTION_DATA_SOURCE_ID="b0d7a6a6-8a42-4ec3-8b61-0be807121317" \
+python digest.py
+```
+
+다이제스트가 생성되면 Notion 데이터베이스에 자동으로 페이지가 추가됩니다.
 
 ### 3. 로컬 실행
 
@@ -330,7 +413,9 @@ SMTP_PORT: 587 (선택, 이메일 사용 시)
 SMTP_USER: your-id@naver.com (선택)
 SMTP_PASS: your-password (선택)
 MAIL_FROM: your-id@naver.com (선택)
-MAIL_TO: recipient@naver.com (선택)
+MAIL_TO: recipient1@email.com,recipient2@email.com (선택, 쉼표로 다중 수신자 가능)
+NOTION_TOKEN: ntn_xxxxxxxxxxxxxxxx (선택, Notion 사용 시)
+NOTION_DATA_SOURCE_ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (선택, Notion 사용 시)
 ```
 
 #### Repository Variables 추가 (선택)
@@ -1014,6 +1099,14 @@ if __name__ == '__main__':
 ---
 
 ## 📝 변경 이력
+
+### v2.2.0 (2026-02-10)
+- ✨ Notion 데이터베이스 자동 연동 기능 추가
+- ✨ 구조화된 속성 추출 (시장 모드, 글로벌 심리, VIX, 확신도 등)
+- ✨ data_source_id 기반 페이지 생성
+- ✨ 다중 이메일 수신자 지원 (쉼표 구분)
+- ✨ Markdown → Notion blocks 자동 변환
+- 📊 GitHub Actions 모니터링에 Notion 성공/실패 상태 추가
 
 ### v2.1.0 (2026-02-08)
 - ✨ 프롬프트 고급 분석 프레임워크로 전면 업그레이드

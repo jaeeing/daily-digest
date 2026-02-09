@@ -812,23 +812,76 @@ def send_to_notion(text: str) -> DeliveryStatus:
 
         # Extract structured properties from markdown
         logging.info("Extracting digest properties...")
-        properties = extract_digest_properties(text)
+        props_raw = extract_digest_properties(text)
 
-        # Content is the full markdown text
-        content = text
+        # Parse keywords from JSON string
+        keywords_list = []
+        try:
+            keywords_list = json.loads(props_raw["핵심 키워드"])
+        except:
+            keywords_list = []
 
-        # Create page using data_source_id structure
-        logging.info("Creating Notion page: %s", properties["제목"])
+        # Convert to Notion property format
+        properties = {
+            "제목": {
+                "title": [{"text": {"content": props_raw["제목"]}}]
+            },
+            "날짜": {
+                "date": {"start": props_raw["date:날짜:start"]}
+            },
+            "시장 모드": {
+                "select": {"name": props_raw["시장 모드"]}
+            },
+            "글로벌 심리": {
+                "select": {"name": props_raw["글로벌 심리"]}
+            },
+            "VIX": {
+                "number": props_raw["VIX"]
+            },
+            "S&P500": {
+                "number": props_raw["S&P500"]
+            },
+            "KOSPI": {
+                "number": props_raw["KOSPI"]
+            },
+            "USD/KRW": {
+                "number": props_raw["USD/KRW"]
+            },
+            "10Y 금리": {
+                "number": props_raw["10Y 금리"]
+            },
+            "확신도": {
+                "select": {"name": props_raw["확신도"]}
+            },
+            "시장 분위기": {
+                "select": {"name": props_raw["시장 분위기"]}
+            },
+            "핵심 키워드": {
+                "multi_select": [{"name": kw} for kw in keywords_list]
+            },
+            "최우선 관심 종목": {
+                "rich_text": [{"text": {"content": props_raw["최우선 관심 종목"]}}]
+            },
+            "한줄 요약": {
+                "rich_text": [{"text": {"content": props_raw["한줄 요약"]}}]
+            }
+        }
+
+        # Convert markdown to Notion blocks
+        logging.info("Converting markdown to Notion blocks...")
+        children = markdown_to_notion_blocks(text)
+
+        # Create page using standard Notion structure
+        # (treating data_source_id as database_id for now)
+        logging.info("Creating Notion page: %s", props_raw["제목"])
 
         payload = {
             "parent": {
                 "type": "data_source_id",
                 "data_source_id": data_source_id
             },
-            "pages": [{
-                "properties": properties,
-                "content": content
-            }]
+            "properties": properties,
+            "children": children[:100]  # Notion has limit on children blocks
         }
 
         # Use direct API call since notion-client might not support this structure yet
@@ -843,6 +896,10 @@ def send_to_notion(text: str) -> DeliveryStatus:
             json=payload,
             timeout=30
         )
+
+        if not response.ok:
+            logging.error("Notion API error response: %s", response.text)
+
         response.raise_for_status()
         result = response.json()
 
@@ -853,7 +910,7 @@ def send_to_notion(text: str) -> DeliveryStatus:
             enabled=True,
             attempted=True,
             success=True,
-            detail=f"page_id={page_id[:8]}..., title={properties['제목'][:30]}"
+            detail=f"page_id={page_id[:8]}..., title={props_raw['제목'][:30]}"
         )
 
     except Exception as exc:
