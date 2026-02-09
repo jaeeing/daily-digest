@@ -771,32 +771,26 @@ def extract_digest_properties(text: str) -> dict:
             if len(parts) > 1:
                 market_atmosphere = parts[1].split(" ")[0].strip()
 
-    # Extract 확신도 from first priority news (1순위)
+    # Extract 분석 확신도 from "시장 레짐 & 온도" table (overall digest confidence)
     confidence = ""
-    conf_match = text.find("| 확신도 |")
-    if conf_match != -1:
-        conf_line_end = text.find("\n", conf_match)
-        if conf_line_end != -1:
-            conf_line = text[conf_match:conf_line_end]
-            parts = [p.strip() for p in conf_line.split('|')]
-            if len(parts) >= 3:
-                raw_confidence = parts[2]
-                # Normalize confidence to match Notion select options
-                # Count filled stars (★) to determine level
-                filled_stars = raw_confidence.count('★')
-                if filled_stars == 5:
-                    confidence = "★★★★★ (90%+)"
-                elif filled_stars == 4:
-                    confidence = "★★★★☆ (70-89%)"
-                elif filled_stars == 3:
-                    confidence = "★★★☆☆ (50-69%)"
-                elif filled_stars == 2:
-                    confidence = "★★☆☆☆ (30-49%)"
-                elif filled_stars == 1:
-                    confidence = "★☆☆☆☆ (<30%)"
-                else:
-                    # If already in correct format or unknown, use as is
-                    confidence = raw_confidence
+    confidence_str = extract_table_value(text, "## 0. 시장 레짐", "분석 확신도")
+    if confidence_str:
+        # Normalize confidence to match Notion select options
+        # Count filled stars (★) to determine level
+        filled_stars = confidence_str.count('★')
+        if filled_stars == 5:
+            confidence = "★★★★★ (90%+)"
+        elif filled_stars == 4:
+            confidence = "★★★★☆ (70-89%)"
+        elif filled_stars == 3:
+            confidence = "★★★☆☆ (50-69%)"
+        elif filled_stars == 2:
+            confidence = "★★☆☆☆ (30-49%)"
+        elif filled_stars == 1:
+            confidence = "★☆☆☆☆ (<30%)"
+        else:
+            # If already in correct format, use as is
+            confidence = confidence_str if confidence_str else "정보 없음"
 
     # Extract 최우선 관심 종목
     priority_stocks = ""
