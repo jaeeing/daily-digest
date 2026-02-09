@@ -838,9 +838,15 @@ def extract_digest_properties(text: str) -> dict:
             summary = text[summary_match + 11:summary_end].strip()
 
     # Extract values from "시장 레짐 & 온도" table
-    market_mode = extract_table_value(text, "## 0. 시장 레짐", "시장 모드")
-    global_sentiment = extract_table_value(text, "## 0. 시장 레짐", "글로벌 심리")
+    market_mode_raw = extract_table_value(text, "## 0. 시장 레짐", "시장 모드")
+    global_sentiment_raw = extract_table_value(text, "## 0. 시장 레짐", "글로벌 심리")
     vix_str = extract_table_value(text, "## 0. 시장 레짐", "변동성 환경")
+
+    # Clean up select field values - extract only the key word, not explanations
+    # Split by common separators and take the first word
+    import re
+    market_mode = market_mode_raw.split('(')[0].split('—')[0].split('/')[0].strip() if market_mode_raw else ""
+    global_sentiment = global_sentiment_raw.split('(')[0].split('—')[0].split('/')[0].strip() if global_sentiment_raw else ""
 
     # Extract VIX number
     vix = 0.0
