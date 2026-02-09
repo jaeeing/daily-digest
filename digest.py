@@ -672,18 +672,133 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
     return blocks
 
 
+def extract_table_value(text: str, section_marker: str, row_key: str) -> str:
+    """Extract value from markdown table in a specific section."""
+    try:
+        # Find the section
+        section_start = text.find(section_marker)
+        if section_start == -1:
+            return ""
+
+        # Find the next section or end
+        next_section = text.find("\n## ", section_start + len(section_marker))
+        section_text = text[section_start:next_section] if next_section != -1 else text[section_start:]
+
+        # Find the row with the key
+        for line in section_text.split('\n'):
+            if line.strip().startswith(f"| {row_key}"):
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) >= 3:
+                    return parts[2]  # Value is in the 3rd column
+        return ""
+    except Exception:
+        return ""
+
+
+def extract_digest_properties(text: str) -> dict:
+    """Extract structured properties from digest markdown text."""
+    now_kst = datetime.now(timezone(timedelta(hours=9)))
+    date_str = now_kst.strftime("%Y-%m-%d")
+
+    # Extract 한줄 요약 from "시장 레짐" section
+    summary = ""
+    summary_match = text.find("💡 한줄 요약:")
+    if summary_match != -1:
+        summary_end = text.find("\n", summary_match)
+        if summary_end != -1:
+            summary = text[summary_match + 11:summary_end].strip()
+
+    # Extract values from "시장 레짐 & 온도" table
+    market_mode = extract_table_value(text, "## 0. 시장 레짐", "시장 모드")
+    global_sentiment = extract_table_value(text, "## 0. 시장 레짐", "글로벌 심리")
+    vix_str = extract_table_value(text, "## 0. 시장 레짐", "변동성 환경")
+
+    # Extract VIX number
+    vix = 0.0
+    if vix_str and "VIX" in vix_str:
+        import re
+        vix_match = re.search(r'(\d+\.?\d*)', vix_str)
+        if vix_match:
+            vix = float(vix_match.group(1))
+
+    # Extract 시장 분위기 from "오늘의 단타 전략"
+    market_atmosphere = ""
+    atm_match = text.find("**시장 분위기**:")
+    if atm_match != -1:
+        atm_end = text.find("\n", atm_match)
+        if atm_end != -1:
+            atm_line = text[atm_match:atm_end]
+            # Extract first word after "분위기**: "
+            parts = atm_line.split("**: ")
+            if len(parts) > 1:
+                market_atmosphere = parts[1].split(" ")[0].strip()
+
+    # Extract 확신도 from first priority news (1순위)
+    confidence = ""
+    conf_match = text.find("| 확신도 |")
+    if conf_match != -1:
+        conf_line_end = text.find("\n", conf_match)
+        if conf_line_end != -1:
+            conf_line = text[conf_match:conf_line_end]
+            parts = [p.strip() for p in conf_line.split('|')]
+            if len(parts) >= 3:
+                confidence = parts[2]
+
+    # Extract 최우선 관심 종목
+    priority_stocks = ""
+    priority_match = text.find("**🎯 최우선 관심**:")
+    if priority_match != -1:
+        priority_end = text.find("\n", priority_match)
+        if priority_end != -1:
+            priority_line = text[priority_match + 16:priority_end]
+            # Extract stock names/codes
+            import re
+            # Find patterns like "종목명 (코드)" or just "종목명"
+            stocks = re.findall(r'[\w가-힣]+\s*\([A-Z0-9]+\)', priority_line)
+            if stocks:
+                priority_stocks = ", ".join(stocks[:3])  # Top 3
+
+    # Extract keywords from first few sections
+    keywords = []
+    # Look for common themes in headings
+    for keyword in ["반도체", "금리", "AI", "지정학", "실적", "금", "원자재", "로테이션", "정치", "중국"]:
+        if keyword in text[:2000]:  # Check in first part of text
+            keywords.append(keyword)
+
+    # Placeholder values for market data (would need real-time data source)
+    properties = {
+        "제목": f"[{date_str}] {summary[:100] if summary else '일일 트레이딩 다이제스트'}",
+        "date:날짜:start": date_str,
+        "date:날짜:is_datetime": 0,
+        "시장 모드": market_mode or "정보 없음",
+        "글로벌 심리": global_sentiment or "정보 없음",
+        "VIX": vix,
+        "S&P500": 0.0,  # Would need to extract from text or API
+        "KOSPI": 0.0,   # Would need to extract from text or API
+        "USD/KRW": 0.0,  # Would need to extract from text or API
+        "10Y 금리": 0.0,  # Would need to extract from text or API
+        "확신도": confidence or "정보 없음",
+        "시장 분위기": market_atmosphere or "정보 없음",
+        "핵심 키워드": json.dumps(keywords[:6], ensure_ascii=False),
+        "최우선 관심 종목": priority_stocks or "정보 없음",
+        "한줄 요약": summary or "일일 시장 분석"
+    }
+
+    return properties
+
+
 def send_to_notion(text: str) -> DeliveryStatus:
     """
-    Send digest content to Notion database.
+    Send digest content to Notion using data_source_id.
 
     Environment variables needed:
     - NOTION_TOKEN: Notion Integration Token
-    - NOTION_DATABASE_ID: Target database ID
+    - NOTION_DATA_SOURCE_ID: Target data source ID
     """
     token = os.getenv("NOTION_TOKEN")
-    database_id = os.getenv("NOTION_DATABASE_ID")
+    data_source_id = os.getenv("NOTION_DATA_SOURCE_ID")
 
-    if not token or not database_id:
+    if not token or not data_source_id:
         logging.info("Notion env vars not set, skipping Notion delivery")
         return DeliveryStatus(
             enabled=False,
@@ -695,60 +810,50 @@ def send_to_notion(text: str) -> DeliveryStatus:
     try:
         notion = NotionClient(auth=token)
 
-        # Generate title with KST timestamp
-        now_kst = datetime.now(timezone(timedelta(hours=9)))
-        title = f"Daily Trading Digest - {now_kst.strftime('%Y-%m-%d (%a)')}"
+        # Extract structured properties from markdown
+        logging.info("Extracting digest properties...")
+        properties = extract_digest_properties(text)
 
-        # Convert markdown to Notion blocks
-        logging.info("Converting markdown to Notion blocks...")
-        blocks = markdown_to_notion_blocks(text)
+        # Content is the full markdown text
+        content = text
 
-        # Notion has a limit of 100 blocks per request
-        # If we have more, we'll create the page and add blocks in chunks
-        initial_blocks = blocks[:100]
-        remaining_blocks = blocks[100:]
+        # Create page using data_source_id structure
+        logging.info("Creating Notion page: %s", properties["제목"])
 
-        # Create the page
-        logging.info("Creating Notion page: %s", title)
-        response = notion.pages.create(
-            parent={"database_id": database_id},
-            properties={
-                "Name": {  # Most databases use "Name" as title property
-                    "title": [
-                        {
-                            "type": "text",
-                            "text": {"content": title}
-                        }
-                    ]
-                },
-                "Date": {  # Add date property if exists
-                    "date": {
-                        "start": now_kst.strftime("%Y-%m-%d")
-                    }
-                }
+        payload = {
+            "parent": {
+                "type": "data_source_id",
+                "data_source_id": data_source_id
             },
-            children=initial_blocks
+            "pages": [{
+                "properties": properties,
+                "content": content
+            }]
+        }
+
+        # Use direct API call since notion-client might not support this structure yet
+        import requests
+        response = requests.post(
+            "https://api.notion.com/v1/pages",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Notion-Version": "2022-06-28"
+            },
+            json=payload,
+            timeout=30
         )
+        response.raise_for_status()
+        result = response.json()
 
-        page_id = response["id"]
+        page_id = result.get("id", "unknown")
         logging.info("Notion page created with ID: %s", page_id)
-
-        # Append remaining blocks in chunks of 100
-        if remaining_blocks:
-            logging.info("Appending %d remaining blocks...", len(remaining_blocks))
-            for chunk_start in range(0, len(remaining_blocks), 100):
-                chunk = remaining_blocks[chunk_start:chunk_start + 100]
-                notion.blocks.children.append(
-                    block_id=page_id,
-                    children=chunk
-                )
-            logging.info("All blocks appended successfully")
 
         return DeliveryStatus(
             enabled=True,
             attempted=True,
             success=True,
-            detail=f"page_id={page_id[:8]}..., blocks={len(blocks)}"
+            detail=f"page_id={page_id[:8]}..., title={properties['제목'][:30]}"
         )
 
     except Exception as exc:
