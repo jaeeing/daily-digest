@@ -591,22 +591,69 @@ def send_email(text: str) -> DeliveryStatus:
     )
 
 
-def markdown_to_notion_blocks(text: str) -> List[dict]:
+def parse_line_with_links(line: str) -> List[dict]:
     """
-    Convert markdown text to Notion blocks.
-    Simplified version - handles headings, paragraphs, horizontal rules, and code blocks.
-    Strips HTML tags for clean Notion display.
+    Parse a line and convert HTML links to Notion rich_text format.
+    Returns list of rich_text objects with proper link formatting.
     """
     import re
 
-    # Strip HTML tags from the entire text first
-    # Remove <a> tags but keep the link text
-    text = re.sub(r'<a\s+href="[^"]*">([^<]*)</a>', r'\1', text)
-    # Remove <div> tags
+    rich_text = []
+    # Pattern to match <a href="url">text</a>
+    link_pattern = r'<a\s+href="([^"]*)">([^<]*)</a>'
+
+    last_end = 0
+    for match in re.finditer(link_pattern, line):
+        # Add text before the link
+        if match.start() > last_end:
+            plain_text = line[last_end:match.start()]
+            if plain_text:
+                rich_text.append({
+                    "type": "text",
+                    "text": {"content": plain_text}
+                })
+
+        # Add the link
+        url = match.group(1)
+        link_text = match.group(2)
+        rich_text.append({
+            "type": "text",
+            "text": {
+                "content": link_text,
+                "link": {"url": url}
+            }
+        })
+        last_end = match.end()
+
+    # Add remaining text after last link
+    if last_end < len(line):
+        remaining = line[last_end:]
+        if remaining:
+            rich_text.append({
+                "type": "text",
+                "text": {"content": remaining}
+            })
+
+    # If no links found, return plain text
+    if not rich_text:
+        rich_text = [{"type": "text", "text": {"content": line}}]
+
+    return rich_text
+
+
+def markdown_to_notion_blocks(text: str) -> List[dict]:
+    """
+    Convert markdown text to Notion blocks.
+    Handles headings, paragraphs, horizontal rules, lists, and HTML links.
+    Converts <a> tags to Notion's link format, removes other HTML tags.
+    """
+    import re
+
+    # Remove <div> tags but keep content
     text = re.sub(r'<div[^>]*>', '', text)
     text = re.sub(r'</div>', '', text)
-    # Remove any remaining HTML tags
-    text = re.sub(r'<[^>]+>', '', text)
+    # Remove other HTML tags except <a> (we'll handle those specially)
+    text = re.sub(r'<(?!a\s)(?!/a>)[^>]+>', '', text)
 
     blocks = []
     lines = text.split('\n')
@@ -617,29 +664,32 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
 
         # Heading 1
         if line.startswith('# '):
+            content = line[2:].strip()[:2000]
             blocks.append({
                 "object": "block",
                 "type": "heading_1",
                 "heading_1": {
-                    "rich_text": [{"type": "text", "text": {"content": line[2:].strip()[:2000]}}]
+                    "rich_text": parse_line_with_links(content)
                 }
             })
         # Heading 2
         elif line.startswith('## '):
+            content = line[3:].strip()[:2000]
             blocks.append({
                 "object": "block",
                 "type": "heading_2",
                 "heading_2": {
-                    "rich_text": [{"type": "text", "text": {"content": line[3:].strip()[:2000]}}]
+                    "rich_text": parse_line_with_links(content)
                 }
             })
         # Heading 3
         elif line.startswith('### '):
+            content = line[4:].strip()[:2000]
             blocks.append({
                 "object": "block",
                 "type": "heading_3",
                 "heading_3": {
-                    "rich_text": [{"type": "text", "text": {"content": line[4:].strip()[:2000]}}]
+                    "rich_text": parse_line_with_links(content)
                 }
             })
         # Horizontal rule
@@ -655,20 +705,22 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
             continue
         # Bulleted list
         elif line.strip().startswith('- ') or line.strip().startswith('* '):
+            content = line.strip()[2:].strip()[:2000]
             blocks.append({
                 "object": "block",
                 "type": "bulleted_list_item",
                 "bulleted_list_item": {
-                    "rich_text": [{"type": "text", "text": {"content": line.strip()[2:].strip()[:2000]}}]
+                    "rich_text": parse_line_with_links(content)
                 }
             })
         # Numbered list
         elif len(line) > 2 and line[0].isdigit() and line[1:3] in ['. ', ') ']:
+            content = line[3:].strip()[:2000]
             blocks.append({
                 "object": "block",
                 "type": "numbered_list_item",
                 "numbered_list_item": {
-                    "rich_text": [{"type": "text", "text": {"content": line[3:].strip()[:2000]}}]
+                    "rich_text": parse_line_with_links(content)
                 }
             })
         # Non-empty paragraph
@@ -679,7 +731,7 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
                 "object": "block",
                 "type": "paragraph",
                 "paragraph": {
-                    "rich_text": [{"type": "text", "text": {"content": content}}]
+                    "rich_text": parse_line_with_links(content)
                 }
             })
 
