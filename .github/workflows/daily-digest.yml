@@ -34,6 +34,8 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         run: python digest.py
 
       - name: Append report to job summary
@@ -66,6 +68,7 @@ jobs:
 
           slack = report.get("delivery", {}).get("slack", {})
           email = report.get("delivery", {}).get("email", {})
+          notion = report.get("delivery", {}).get("notion", {})
           cfg = report.get("config", {})
 
           print("## Monitoring Snapshot")
@@ -74,6 +77,7 @@ jobs:
           print(f"- news_count: `{report.get('news_count', 0)}`")
           print(f"- slack_success: `{slack.get('success', False)}` ({slack.get('detail', 'n/a')})")
           print(f"- email_success: `{email.get('success', False)}` ({email.get('detail', 'n/a')})")
+          print(f"- notion_success: `{notion.get('success', False)}` ({notion.get('detail', 'n/a')})")
           print(f"- keyword_count: `{cfg.get('keyword_count', 'n/a')}`")
           PY
 

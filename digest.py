@@ -13,6 +13,7 @@ import requests
 from google import genai
 import markdown
 from premailer import transform
+from notion_client import Client as NotionClient
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -590,6 +591,176 @@ def send_email(text: str) -> DeliveryStatus:
     )
 
 
+def markdown_to_notion_blocks(text: str) -> List[dict]:
+    """
+    Convert markdown text to Notion blocks.
+    Simplified version - handles headings, paragraphs, horizontal rules, and code blocks.
+    """
+    blocks = []
+    lines = text.split('\n')
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+
+        # Heading 1
+        if line.startswith('# '):
+            blocks.append({
+                "object": "block",
+                "type": "heading_1",
+                "heading_1": {
+                    "rich_text": [{"type": "text", "text": {"content": line[2:].strip()[:2000]}}]
+                }
+            })
+        # Heading 2
+        elif line.startswith('## '):
+            blocks.append({
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [{"type": "text", "text": {"content": line[3:].strip()[:2000]}}]
+                }
+            })
+        # Heading 3
+        elif line.startswith('### '):
+            blocks.append({
+                "object": "block",
+                "type": "heading_3",
+                "heading_3": {
+                    "rich_text": [{"type": "text", "text": {"content": line[4:].strip()[:2000]}}]
+                }
+            })
+        # Horizontal rule
+        elif line.strip() == '---':
+            blocks.append({
+                "object": "block",
+                "type": "divider",
+                "divider": {}
+            })
+        # Bulleted list
+        elif line.strip().startswith('- ') or line.strip().startswith('* '):
+            blocks.append({
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {
+                    "rich_text": [{"type": "text", "text": {"content": line.strip()[2:].strip()[:2000]}}]
+                }
+            })
+        # Numbered list
+        elif len(line) > 2 and line[0].isdigit() and line[1:3] in ['. ', ') ']:
+            blocks.append({
+                "object": "block",
+                "type": "numbered_list_item",
+                "numbered_list_item": {
+                    "rich_text": [{"type": "text", "text": {"content": line[3:].strip()[:2000]}}]
+                }
+            })
+        # Non-empty paragraph
+        elif line.strip():
+            # Notion has a 2000 character limit per rich_text object
+            content = line.strip()[:2000]
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": content}}]
+                }
+            })
+
+        i += 1
+
+    return blocks
+
+
+def send_to_notion(text: str) -> DeliveryStatus:
+    """
+    Send digest content to Notion database.
+
+    Environment variables needed:
+    - NOTION_TOKEN: Notion Integration Token
+    - NOTION_DATABASE_ID: Target database ID
+    """
+    token = os.getenv("NOTION_TOKEN")
+    database_id = os.getenv("NOTION_DATABASE_ID")
+
+    if not token or not database_id:
+        logging.info("Notion env vars not set, skipping Notion delivery")
+        return DeliveryStatus(
+            enabled=False,
+            attempted=False,
+            success=False,
+            detail="notion_not_configured"
+        )
+
+    try:
+        notion = NotionClient(auth=token)
+
+        # Generate title with KST timestamp
+        now_kst = datetime.now(timezone(timedelta(hours=9)))
+        title = f"Daily Trading Digest - {now_kst.strftime('%Y-%m-%d (%a)')}"
+
+        # Convert markdown to Notion blocks
+        logging.info("Converting markdown to Notion blocks...")
+        blocks = markdown_to_notion_blocks(text)
+
+        # Notion has a limit of 100 blocks per request
+        # If we have more, we'll create the page and add blocks in chunks
+        initial_blocks = blocks[:100]
+        remaining_blocks = blocks[100:]
+
+        # Create the page
+        logging.info("Creating Notion page: %s", title)
+        response = notion.pages.create(
+            parent={"database_id": database_id},
+            properties={
+                "Name": {  # Most databases use "Name" as title property
+                    "title": [
+                        {
+                            "type": "text",
+                            "text": {"content": title}
+                        }
+                    ]
+                },
+                "Date": {  # Add date property if exists
+                    "date": {
+                        "start": now_kst.strftime("%Y-%m-%d")
+                    }
+                }
+            },
+            children=initial_blocks
+        )
+
+        page_id = response["id"]
+        logging.info("Notion page created with ID: %s", page_id)
+
+        # Append remaining blocks in chunks of 100
+        if remaining_blocks:
+            logging.info("Appending %d remaining blocks...", len(remaining_blocks))
+            for chunk_start in range(0, len(remaining_blocks), 100):
+                chunk = remaining_blocks[chunk_start:chunk_start + 100]
+                notion.blocks.children.append(
+                    block_id=page_id,
+                    children=chunk
+                )
+            logging.info("All blocks appended successfully")
+
+        return DeliveryStatus(
+            enabled=True,
+            attempted=True,
+            success=True,
+            detail=f"page_id={page_id[:8]}..., blocks={len(blocks)}"
+        )
+
+    except Exception as exc:
+        logging.error("Failed to send to Notion: %s", exc, exc_info=True)
+        return DeliveryStatus(
+            enabled=True,
+            attempted=True,
+            success=False,
+            detail=f"error: {str(exc)[:100]}"
+        )
+
+
 def write_run_report(report: dict) -> None:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     run_id = os.getenv("GITHUB_RUN_ID", datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"))
@@ -609,6 +780,7 @@ def write_run_report(report: dict) -> None:
         "## Delivery",
         f"- slack: `{report['delivery']['slack']['detail']}` (success={report['delivery']['slack']['success']})",
         f"- email: `{report['delivery']['email']['detail']}` (success={report['delivery']['email']['success']})",
+        f"- notion: `{report['delivery']['notion']['detail']}` (success={report['delivery']['notion']['success']})",
     ]
     if report.get("error"):
         summary_lines.extend(["", "## Error", f"`{report['error']}`"])
@@ -638,6 +810,7 @@ def main() -> None:
         "delivery": {
             "slack": {"enabled": False, "attempted": False, "success": False, "detail": "not_attempted"},
             "email": {"enabled": False, "attempted": False, "success": False, "detail": "not_attempted"},
+            "notion": {"enabled": False, "attempted": False, "success": False, "detail": "not_attempted"},
         },
         "error": None,
     }
@@ -666,13 +839,22 @@ def main() -> None:
                 enabled=True, attempted=True, success=False, detail=f"error={exc}"
             ).__dict__
 
-        if (
-            report["delivery"]["slack"]["attempted"]
-            and not report["delivery"]["slack"]["success"]
-            and report["delivery"]["email"]["attempted"]
-            and not report["delivery"]["email"]["success"]
-        ):
-            raise RuntimeError("Both Slack and Email delivery failed.")
+        try:
+            notion_status = send_to_notion(digest)
+            report["delivery"]["notion"] = notion_status.__dict__
+        except Exception as exc:
+            report["delivery"]["notion"] = DeliveryStatus(
+                enabled=True, attempted=True, success=False, detail=f"error={exc}"
+            ).__dict__
+
+        # Check if all delivery methods failed
+        all_failed = all(
+            delivery["attempted"] and not delivery["success"]
+            for delivery in report["delivery"].values()
+            if delivery["attempted"]
+        )
+        if all_failed and any(d["attempted"] for d in report["delivery"].values()):
+            raise RuntimeError("All delivery methods failed.")
 
         report["status"] = "success"
         print(digest)
