@@ -780,7 +780,23 @@ def extract_digest_properties(text: str) -> dict:
             conf_line = text[conf_match:conf_line_end]
             parts = [p.strip() for p in conf_line.split('|')]
             if len(parts) >= 3:
-                confidence = parts[2]
+                raw_confidence = parts[2]
+                # Normalize confidence to match Notion select options
+                # Count filled stars (★) to determine level
+                filled_stars = raw_confidence.count('★')
+                if filled_stars == 5:
+                    confidence = "★★★★★ (90%+)"
+                elif filled_stars == 4:
+                    confidence = "★★★★☆ (70-89%)"
+                elif filled_stars == 3:
+                    confidence = "★★★☆☆ (50-69%)"
+                elif filled_stars == 2:
+                    confidence = "★★☆☆☆ (30-49%)"
+                elif filled_stars == 1:
+                    confidence = "★☆☆☆☆ (<30%)"
+                else:
+                    # If already in correct format or unknown, use as is
+                    confidence = raw_confidence
 
     # Extract 최우선 관심 종목
     priority_stocks = ""
