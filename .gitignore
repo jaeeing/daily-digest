@@ -2,3 +2,6 @@ __pycache__/
 .pycache/
 .env
 artifacts/
+
+# Test scripts with credentials
+test-*.sh
