@@ -320,13 +320,13 @@ https://www.notion.so/{workspace}/{database_id}?v=...
 
 예시:
 ```
-https://www.notion.so/myworkspace/b0d7a6a68a424ec38b610be807121317?v=...
+https://www.notion.so/myworkspace/a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6?v=...
                                   └─────── database_id ──────┘
 ```
 
 하이픈을 추가한 형식으로 변환:
 ```
-b0d7a6a6-8a42-4ec3-8b61-0be807121317
+a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6
 ```
 
 **5. 환경변수 설정**
@@ -341,7 +341,7 @@ export NOTION_DATA_SOURCE_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```bash
 GOOGLE_API_KEY="your-key" \
 NOTION_TOKEN="ntn_..." \
-NOTION_DATA_SOURCE_ID="b0d7a6a6-8a42-4ec3-8b61-0be807121317" \
+NOTION_DATA_SOURCE_ID="a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6" \
 python digest.py
 ```
 
