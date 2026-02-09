@@ -721,6 +721,44 @@ def extract_digest_properties(text: str) -> dict:
         if vix_match:
             vix = float(vix_match.group(1))
 
+    # Extract market indices from text
+    sp500 = 0.0
+    kospi = 0.0
+    usdkrw = 0.0
+    bond_10y = 0.0
+
+    # Look for S&P 500 variations
+    sp_patterns = [r'S&P\s*500[^\d]*(\d+\.?\d*)', r'S&P[^\d]*(\d+\.?\d*)', r'SPX[^\d]*(\d+\.?\d*)']
+    for pattern in sp_patterns:
+        sp_match = re.search(pattern, text, re.IGNORECASE)
+        if sp_match:
+            sp500 = float(sp_match.group(1))
+            break
+
+    # Look for KOSPI
+    kospi_match = re.search(r'KOSPI[^\d]*(\d+\.?\d*)', text, re.IGNORECASE)
+    if kospi_match:
+        kospi = float(kospi_match.group(1))
+
+    # Look for USD/KRW or 원달러
+    usdkrw_patterns = [r'USD/KRW[^\d]*(\d+\.?\d*)', r'원달러[^\d]*(\d+\.?\d*)', r'달러[^\d]*(\d+\.?\d*)원']
+    for pattern in usdkrw_patterns:
+        usd_match = re.search(pattern, text, re.IGNORECASE)
+        if usd_match:
+            usdkrw = float(usd_match.group(1))
+            break
+
+    # Look for 10Y bond yield
+    bond_patterns = [r'10Y[^\d]*(\d+\.?\d*)%?', r'10년물[^\d]*(\d+\.?\d*)%?']
+    for pattern in bond_patterns:
+        bond_match = re.search(pattern, text, re.IGNORECASE)
+        if bond_match:
+            bond_10y = float(bond_match.group(1))
+            # Convert percentage if it's above 10 (e.g., 4.25% -> 0.0425)
+            if bond_10y > 10:
+                bond_10y = bond_10y / 100
+            break
+
     # Extract 시장 분위기 from "오늘의 단타 전략"
     market_atmosphere = ""
     atm_match = text.find("**시장 분위기**:")
@@ -765,7 +803,7 @@ def extract_digest_properties(text: str) -> dict:
         if keyword in text[:2000]:  # Check in first part of text
             keywords.append(keyword)
 
-    # Placeholder values for market data (would need real-time data source)
+    # Market data extracted from text
     properties = {
         "제목": f"[{date_str}] {summary[:100] if summary else '일일 트레이딩 다이제스트'}",
         "date:날짜:start": date_str,
@@ -773,10 +811,10 @@ def extract_digest_properties(text: str) -> dict:
         "시장 모드": market_mode or "정보 없음",
         "글로벌 심리": global_sentiment or "정보 없음",
         "VIX": vix,
-        "S&P500": 0.0,  # Would need to extract from text or API
-        "KOSPI": 0.0,   # Would need to extract from text or API
-        "USD/KRW": 0.0,  # Would need to extract from text or API
-        "10Y 금리": 0.0,  # Would need to extract from text or API
+        "S&P500": sp500,
+        "KOSPI": kospi,
+        "USD/KRW": usdkrw,
+        "10Y 금리": bond_10y,
         "확신도": confidence or "정보 없음",
         "시장 분위기": market_atmosphere or "정보 없음",
         "핵심 키워드": json.dumps(keywords[:6], ensure_ascii=False),
