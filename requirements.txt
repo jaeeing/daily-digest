@@ -4,3 +4,4 @@ python-dateutil>=2.9.0.post0
 markdown>=3.5.0
 premailer>=3.10.0
 notion-client>=2.2.0
+yfinance>=0.2.0

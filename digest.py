@@ -695,6 +695,67 @@ def extract_table_value(text: str, section_marker: str, row_key: str) -> str:
         return ""
 
 
+def fetch_realtime_market_data() -> dict:
+    """
+    Fetch real-time market data from Yahoo Finance using direct API.
+
+    Returns dict with: vix, sp500, kospi, usdkrw, bond_10y
+    Returns 0.0 for any failed fetches.
+    """
+    data = {
+        "vix": 0.0,
+        "sp500": 0.0,
+        "kospi": 0.0,
+        "usdkrw": 0.0,
+        "bond_10y": 0.0
+    }
+
+    try:
+        import yfinance as yf
+
+        # Use download function which is more reliable
+        symbols = {
+            "^VIX": "vix",
+            "^GSPC": "sp500",
+            "^KS11": "kospi",
+            "KRW=X": "usdkrw",
+            "^TNX": "bond_10y"
+        }
+
+        for symbol, key in symbols.items():
+            try:
+                ticker_data = yf.download(symbol, period="5d", progress=False, show_errors=False)
+                if not ticker_data.empty:
+                    value = ticker_data['Close'].iloc[-1]
+
+                    if key == "vix":
+                        data[key] = round(value, 2)
+                    elif key == "sp500":
+                        data[key] = round(value, 1)
+                    elif key == "kospi":
+                        data[key] = round(value, 0)
+                    elif key == "usdkrw":
+                        data[key] = round(value, 0)
+                    elif key == "bond_10y":
+                        # TNX returns percentage (e.g., 4.25), convert to decimal
+                        data[key] = round(value / 100, 4)
+
+            except Exception as e:
+                logging.warning(f"Failed to fetch {symbol}: {e}")
+
+        if data["vix"] > 0 or data["sp500"] > 0:
+            logging.info(f"Fetched market data: VIX={data['vix']}, S&P500={data['sp500']}, KOSPI={data['kospi']}, USD/KRW={data['usdkrw']}, 10Y={data['bond_10y']}")
+        else:
+            logging.warning("No market data fetched - all values are 0.0")
+
+    except ImportError:
+        logging.warning("yfinance not installed, skipping real-time market data fetch")
+    except Exception as e:
+        logging.error(f"Error fetching market data: {e}")
+
+    return data
+
+
 def extract_digest_properties(text: str) -> dict:
     """Extract structured properties from digest markdown text."""
     now_kst = datetime.now(timezone(timedelta(hours=9)))
@@ -727,37 +788,43 @@ def extract_digest_properties(text: str) -> dict:
     usdkrw = 0.0
     bond_10y = 0.0
 
-    # Look for S&P 500 variations
-    sp_patterns = [r'S&P\s*500[^\d]*(\d+\.?\d*)', r'S&P[^\d]*(\d+\.?\d*)', r'SPX[^\d]*(\d+\.?\d*)']
+    # Look for S&P 500 variations - only extract if value is realistic (> 1000)
+    sp_patterns = [r'S&P\s*500[:\s]+(\d{4,5}\.?\d*)', r'S&P[:\s]+(\d{4,5}\.?\d*)']
     for pattern in sp_patterns:
         sp_match = re.search(pattern, text, re.IGNORECASE)
         if sp_match:
-            sp500 = float(sp_match.group(1))
-            break
+            value = float(sp_match.group(1))
+            if value > 1000:  # Sanity check
+                sp500 = value
+                break
 
-    # Look for KOSPI
-    kospi_match = re.search(r'KOSPI[^\d]*(\d+\.?\d*)', text, re.IGNORECASE)
+    # Look for KOSPI - only extract if value is realistic (> 1000)
+    kospi_match = re.search(r'KOSPI[:\s]+(\d{4,5}\.?\d*)', text, re.IGNORECASE)
     if kospi_match:
-        kospi = float(kospi_match.group(1))
+        value = float(kospi_match.group(1))
+        if value > 1000:  # Sanity check
+            kospi = value
 
-    # Look for USD/KRW or 원달러
-    usdkrw_patterns = [r'USD/KRW[^\d]*(\d+\.?\d*)', r'원달러[^\d]*(\d+\.?\d*)', r'달러[^\d]*(\d+\.?\d*)원']
+    # Look for USD/KRW - only extract if value is realistic (1000-2000)
+    usdkrw_patterns = [r'USD/KRW[:\s]+(\d{4}\.?\d*)', r'원달러[:\s]+(\d{4}\.?\d*)']
     for pattern in usdkrw_patterns:
         usd_match = re.search(pattern, text, re.IGNORECASE)
         if usd_match:
-            usdkrw = float(usd_match.group(1))
-            break
+            value = float(usd_match.group(1))
+            if 1000 <= value <= 2000:  # Sanity check for won/dollar
+                usdkrw = value
+                break
 
-    # Look for 10Y bond yield
-    bond_patterns = [r'10Y[^\d]*(\d+\.?\d*)%?', r'10년물[^\d]*(\d+\.?\d*)%?']
+    # Look for 10Y bond yield - only extract if value is realistic (0.5-10%)
+    bond_patterns = [r'10Y[:\s]+(\d+\.?\d*)%', r'10년물[:\s]+(\d+\.?\d*)%']
     for pattern in bond_patterns:
         bond_match = re.search(pattern, text, re.IGNORECASE)
         if bond_match:
-            bond_10y = float(bond_match.group(1))
-            # Convert percentage if it's above 10 (e.g., 4.25% -> 0.0425)
-            if bond_10y > 10:
-                bond_10y = bond_10y / 100
-            break
+            value = float(bond_match.group(1))
+            # Value should be between 0.5 and 10 for realistic bond yields
+            if 0.5 <= value <= 10:
+                bond_10y = value / 100  # Convert to decimal
+                break
 
     # Extract 시장 분위기 from "오늘의 단타 전략"
     market_atmosphere = ""
@@ -812,6 +879,23 @@ def extract_digest_properties(text: str) -> dict:
     for keyword in ["반도체", "금리", "AI", "지정학", "실적", "금", "원자재", "로테이션", "정치", "중국"]:
         if keyword in text[:2000]:  # Check in first part of text
             keywords.append(keyword)
+
+    # Fetch real-time market data as fallback if text extraction failed
+    if vix == 0.0 or sp500 == 0.0 or kospi == 0.0 or usdkrw == 0.0 or bond_10y == 0.0:
+        logging.info("Text extraction incomplete, fetching real-time market data...")
+        realtime_data = fetch_realtime_market_data()
+
+        # Use real-time data as fallback
+        if vix == 0.0 and realtime_data["vix"] > 0:
+            vix = realtime_data["vix"]
+        if sp500 == 0.0 and realtime_data["sp500"] > 0:
+            sp500 = realtime_data["sp500"]
+        if kospi == 0.0 and realtime_data["kospi"] > 0:
+            kospi = realtime_data["kospi"]
+        if usdkrw == 0.0 and realtime_data["usdkrw"] > 0:
+            usdkrw = realtime_data["usdkrw"]
+        if bond_10y == 0.0 and realtime_data["bond_10y"] > 0:
+            bond_10y = realtime_data["bond_10y"]
 
     # Market data extracted from text
     properties = {
