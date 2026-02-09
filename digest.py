@@ -595,7 +595,19 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
     """
     Convert markdown text to Notion blocks.
     Simplified version - handles headings, paragraphs, horizontal rules, and code blocks.
+    Strips HTML tags for clean Notion display.
     """
+    import re
+
+    # Strip HTML tags from the entire text first
+    # Remove <a> tags but keep the link text
+    text = re.sub(r'<a\s+href="[^"]*">([^<]*)</a>', r'\1', text)
+    # Remove <div> tags
+    text = re.sub(r'<div[^>]*>', '', text)
+    text = re.sub(r'</div>', '', text)
+    # Remove any remaining HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+
     blocks = []
     lines = text.split('\n')
     i = 0
@@ -637,6 +649,10 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
                 "type": "divider",
                 "divider": {}
             })
+        # Skip table separator lines (e.g., |------|------|)
+        elif line.strip().startswith('|') and '-' in line and line.count('-') > 3:
+            i += 1
+            continue
         # Bulleted list
         elif line.strip().startswith('- ') or line.strip().startswith('* '):
             blocks.append({
