@@ -792,7 +792,7 @@ def fetch_realtime_market_data() -> dict:
 
         for symbol, key in symbols.items():
             try:
-                ticker_data = yf.download(symbol, period="5d", progress=False, show_errors=False)
+                ticker_data = yf.download(symbol, period="5d", progress=False)
                 if not ticker_data.empty:
                     value = ticker_data['Close'].iloc[-1]
 
