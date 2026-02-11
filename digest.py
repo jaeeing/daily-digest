@@ -867,7 +867,8 @@ def extract_digest_properties(text: str) -> dict:
     if summary_match != -1:
         summary_end = text.find("\n", summary_match)
         if summary_end != -1:
-            summary = text[summary_match + 11:summary_end].strip()
+            prefix = "💡 한줄 요약:"
+            summary = text[summary_match + len(prefix):summary_end].strip()
 
     # Extract values from "시장 레짐 & 온도" table
     market_mode_raw = extract_table_value(text, "## 0. 시장 레짐", "시장 모드")
