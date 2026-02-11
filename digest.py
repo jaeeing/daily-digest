@@ -699,10 +699,42 @@ def markdown_to_notion_blocks(text: str) -> List[dict]:
                 "type": "divider",
                 "divider": {}
             })
-        # Skip table separator lines (e.g., |------|------|)
-        elif line.strip().startswith('|') and '-' in line and line.count('-') > 3:
-            i += 1
-            continue
+        # Markdown table — collect all rows and emit a Notion table block
+        elif line.strip().startswith('|'):
+            table_rows = []
+            while i < len(lines) and lines[i].strip().startswith('|'):
+                row_line = lines[i].strip()
+                # Skip separator lines (|---|---|)
+                if re.match(r'^\|[\s\-|:]+\|$', row_line):
+                    i += 1
+                    continue
+                cells = [c.strip() for c in row_line.strip('|').split('|')]
+                table_rows.append(cells)
+                i += 1
+
+            if table_rows:
+                col_count = max(len(r) for r in table_rows)
+                notion_rows = []
+                for idx, row in enumerate(table_rows):
+                    # Pad cells to col_count
+                    padded = row + [''] * (col_count - len(row))
+                    notion_rows.append({
+                        "type": "table_row",
+                        "table_row": {
+                            "cells": [parse_line_with_links(cell[:2000]) for cell in padded]
+                        }
+                    })
+                blocks.append({
+                    "object": "block",
+                    "type": "table",
+                    "table": {
+                        "table_width": col_count,
+                        "has_column_header": True,
+                        "has_row_header": False,
+                        "children": notion_rows
+                    }
+                })
+            continue  # i already incremented in the while loop
         # Bulleted list
         elif line.strip().startswith('- ') or line.strip().startswith('* '):
             content = line.strip()[2:].strip()[:2000]
@@ -1111,6 +1143,28 @@ def send_to_notion(text: str) -> DeliveryStatus:
 
         page_id = result.get("id", "unknown")
         logging.info("Notion page created with ID: %s", page_id)
+
+        # Append remaining blocks in chunks of 100
+        remaining = children[100:]
+        chunk_num = 1
+        while remaining:
+            chunk = remaining[:100]
+            remaining = remaining[100:]
+            append_response = requests.patch(
+                f"https://api.notion.com/v1/blocks/{page_id}/children",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "Notion-Version": "2022-06-28"
+                },
+                json={"children": chunk},
+                timeout=30
+            )
+            if not append_response.ok:
+                logging.warning("Failed to append block chunk %d: %s", chunk_num, append_response.text)
+            else:
+                logging.info("Appended block chunk %d (%d blocks)", chunk_num, len(chunk))
+            chunk_num += 1
 
         return DeliveryStatus(
             enabled=True,
